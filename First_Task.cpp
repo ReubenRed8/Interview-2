@@ -1,29 +1,43 @@
 #include <iostream>
 #include <thread>
-#include <chrono>
 #include <mutex>
 using namespace std;
-using namespace std::chrono;
+
 
 mutex mtx;
+bool even = true;
 
-void printeven(int x, int y){
-  while (x<=y){
-    lock_guard<mutex> lock(mtx);
-    cout << x << endl;
-    x=x+2;
+void printeven(int x, int y) {
+    while (x<=y) {
+        while(true){
+            lock_guard<mutex> lock(mtx);
+            if (even){
+                cout << x << endl;
+                x=x+2;
+                even = false;
+                break;
+            }
+        }
+    }    
 }
-}
+
 
 void printodd(int x, int y){
-  while (x<=y){
-    lock_guard<mutex> lock(mtx);
-    cout << x << endl;
-    x=x+2;
-  }
+    while (x<=y) {
+        while(true){
+            lock_guard<mutex> lock(mtx);
+            if (!even){
+                cout << x << endl;
+                x += 2;
+                even = true;
+                break;
+            }
+        }
+    } 
 }
 
 int main(){
+//   cout << "Hi" << endl;
   std::thread t1(printeven,0,10);
   std::thread t2(printodd,1,9);
   t1.join();
