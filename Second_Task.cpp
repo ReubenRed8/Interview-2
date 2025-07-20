@@ -18,15 +18,14 @@ string getProperInput(const string& prompt) {
 }
 
 const int SHIFT_KEY = 3;
-bool processFile(const std::filesystem::path& filePath, bool mode) {
-    std::ifstream inputFile(filePath, std::ios::binary);
+bool processFile(const filesystem::path& filePath, bool mode) {
+    ifstream inputFile(filePath, ios::binary);
     if (!inputFile) {
-        std::cerr << "Error: Could not open file for reading: " << filePath << std::endl;
+        cerr << "Error: Could not open file for reading: " << filePath << endl;
         return false;
     }
 
-    std::string content((std::istreambuf_iterator<char>(inputFile)),
-                         std::istreambuf_iterator<char>());
+    string content((istreambuf_iterator<char>(inputFile)), istreambuf_iterator<char>());
     inputFile.close();
 
     int shift = mode ? SHIFT_KEY : -SHIFT_KEY;
@@ -35,16 +34,16 @@ bool processFile(const std::filesystem::path& filePath, bool mode) {
         c = c + shift;
     }
 
-    std::ofstream outputFile(filePath, std::ios::binary);
+    ofstream outputFile(filePath, ios::binary);
     if (!outputFile) {
-        std::cerr << "Error: Could not open file for writing: " << filePath << std::endl;
+        cerr << "Error: Could not open file for writing: " << filePath << endl;
         return false;
     }
 
     outputFile.write(content.c_str(), content.size());
     outputFile.close();
 
-    std::cout << (mode ? "Encrypted" : "Decrypted") << " file successfully: " << filePath << std::endl;
+    cout << (mode ? "Encrypted" : "Decrypted") << " file successfully: " << filePath << endl;
     return true;
 }
 
@@ -69,17 +68,17 @@ void storeFeedback() {
     // cout << " Feedback: " << feedback << endl;
     // cout << "\n ---------------------- " << endl;
 
-    std::filesystem::path countryPath = country ;
-    std::filesystem::path statePath = countryPath / state ;
-    std::filesystem::path districtPath = statePath / district; 
+    filesystem::path countryPath = country ;
+    filesystem::path statePath = countryPath / state ;
+    filesystem::path districtPath = statePath / district; 
     string file_name = key + ".txt";
-    std::filesystem::path filePath = districtPath / file_name; // The file path inside the directory
+    filesystem::path filePath = districtPath / file_name; // The file path inside the directory
 
     try{
-        std::filesystem::create_directories(districtPath);
+        filesystem::create_directories(districtPath);
         cout << "\nDirectories created" << districtPath << endl;
     }
-    catch (const std::filesystem::filesystem_error& e) {
+    catch (const filesystem::filesystem_error& e) {
         cerr << "\nError creating directories: " << e.what() << endl;
     }
 
@@ -117,13 +116,13 @@ void readFeedback() {
     district = getProperInput(" District : ");
     key = getProperInput(" Password : ");
 
-    std::filesystem::path countryPath = country ;
-    std::filesystem::path statePath = countryPath / state ;
-    std::filesystem::path districtPath = statePath / district; 
+    filesystem::path countryPath = country ;
+    filesystem::path statePath = countryPath / state ;
+    filesystem::path districtPath = statePath / district; 
     string file_name = key + ".txt";
-    std::filesystem::path filePath = districtPath / file_name; // The file path inside the directory
+    filesystem::path filePath = districtPath / file_name; // The file path inside the directory
 
-    // std::filesystem::path filePath = std::filesystem::path(country) / state / district / (name + ".txt");
+    // filesystem::path filePath = filesystem::path(country) / state / district / (name + ".txt");
     
     try {
         if (!processFile(filePath, false)) {
@@ -144,7 +143,7 @@ void readFeedback() {
         } else {
             cout << "\nFile not found.\n" << endl;
         }
-    } catch (const std::filesystem::filesystem_error& e) {
+    } catch (const filesystem::filesystem_error& e) {
         cout << "\nError accessing file: " << e.what() << endl;
     }
 

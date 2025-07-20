@@ -4,11 +4,13 @@
 #include <atomic>
 #include <mutex>
 
+using namespace std;
+
 // Shared variables
 cv::Mat shared_frame;
-std::mutex frame_mutex;
-std::atomic<bool> running(true);
-std::atomic<bool> take_snapshot(false);
+mutex frame_mutex;
+atomic<bool> running(true);
+atomic<bool> take_snapshot(false);
 
 // Thread: capture frames from camera
 void captureThread(cv::VideoCapture& cap) {
@@ -17,23 +19,23 @@ void captureThread(cv::VideoCapture& cap) {
         cap >> frame;
 
         if (frame.empty()) {
-            std::cerr << "Warning: Empty frame\n";
+            cerr << "Warning: Empty frame\n";
             continue;
         }
 
         {
-            std::lock_guard<std::mutex> lock(frame_mutex);
+            lock_guard<mutex> lock(frame_mutex);
             shared_frame = frame.clone();
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        this_thread::sleep_for(chrono::milliseconds(10));
     }
 }
 
 int main() {
     cv::VideoCapture cap(0);
     if (!cap.isOpened()) {
-        std::cerr << "Error: Could not open webcam\n";
+        cerr << "Error: Could not open webcam\n";
         return -1;
     }
 
@@ -45,16 +47,16 @@ int main() {
                            30,
                            cv::Size(width, height));
 
-    std::thread cap_thread(captureThread, std::ref(cap));
+    thread cap_thread(captureThread, ref(cap));
     int snapshot_count = 0;
 
-    std::cout << "Press 's' to take a snapshot. Press ESC to quit.\n";
+    cout << "Press 's' to take a snapshot. Press ESC to quit.\n";
 
     while (running) {
         cv::Mat frame_copy;
 
         {
-            std::lock_guard<std::mutex> lock(frame_mutex);
+            lock_guard<mutex> lock(frame_mutex);
             if (shared_frame.empty()) continue;
             frame_copy = shared_frame.clone();
         }
@@ -70,9 +72,9 @@ int main() {
         if (key == 27) {  // ESC
             running = false;
         } else if (key == 's') {
-            std::string filename = "snapshot_" + std::to_string(snapshot_count++) + ".png";
+            string filename = "snapshot_" + to_string(snapshot_count++) + ".png";
             cv::imwrite(filename, frame_copy);
-            std::cout << "Saved snapshot: " << filename << "\n";
+            cout << "Saved snapshot: " << filename << "\n";
         }
     }
 
