@@ -1,109 +1,82 @@
-// #include <opencv2/opencv.hpp>
-// #include "C:\mingw64\opencv\build\include\opencv2\opencv.hpp"
-#include"C:\OpenCV-MinGW-Build-OpenCV-4.5.5-x64\include\opencv2\opencv.hpp"
-#include <thread>
-#include <mutex>
-#include <atomic>
+#include <opencv2/opencv.hpp>
 #include <iostream>
-#include <chrono>
+#include <thread>
+#include <atomic>
+#include <mutex>
 
-std::mutex frame_mutex;
+// Shared variables
 cv::Mat shared_frame;
-std::atomic<bool> keep_running(true);
+std::mutex frame_mutex;
+std::atomic<bool> running(true);
 std::atomic<bool> take_snapshot(false);
 
-void capture_thread_func(cv::VideoCapture& cap) {
-    while (keep_running) {
+// Thread: capture frames from camera
+void captureThread(cv::VideoCapture& cap) {
+    while (running) {
         cv::Mat frame;
-        if (!cap.read(frame)) {
-            std::cerr << "Failed to read frame from camera.\n";
-            break;
+        cap >> frame;
+
+        if (frame.empty()) {
+            std::cerr << "Warning: Empty frame\n";
+            continue;
         }
 
         {
             std::lock_guard<std::mutex> lock(frame_mutex);
-            shared_frame = frame.clone();  // copy to shared frame
+            shared_frame = frame.clone();
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
-}
-
-void writer_thread_func(cv::VideoWriter& writer) {
-    while (keep_running) {
-        cv::Mat frame_copy;
-        {
-            std::lock_guard<std::mutex> lock(frame_mutex);
-            if (shared_frame.empty()) continue;
-            frame_copy = shared_frame.clone();
-        }
-
-        writer.write(frame_copy);
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
-}
-
-void snapshot_thread_func() {
-    int img_count = 0;
-    while (keep_running) {
-        if (take_snapshot) {
-            cv::Mat frame_copy;
-            {
-                std::lock_guard<std::mutex> lock(frame_mutex);
-                frame_copy = shared_frame.clone();
-            }
-
-            if (!frame_copy.empty()) {
-                std::string filename = "snapshot_" + std::to_string(img_count++) + ".png";
-                cv::imwrite(filename, frame_copy);
-                std::cout << "Saved " << filename << "\n";
-            }
-            take_snapshot = false;
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
 }
 
 int main() {
     cv::VideoCapture cap(0);
     if (!cap.isOpened()) {
-        std::cerr << "Cannot open webcam\n";
+        std::cerr << "Error: Could not open webcam\n";
         return -1;
     }
 
-    int frame_width = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_WIDTH));
-    int frame_height = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_HEIGHT));
+    int width = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_WIDTH));
+    int height = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_HEIGHT));
+
     cv::VideoWriter writer("output.avi",
                            cv::VideoWriter::fourcc('M','J','P','G'),
                            30,
-                           cv::Size(frame_width, frame_height));
+                           cv::Size(width, height));
 
-    std::thread capture_thread(capture_thread_func, std::ref(cap));
-    std::thread writer_thread(writer_thread_func, std::ref(writer));
-    std::thread snapshot_thread(snapshot_thread_func);
+    std::thread cap_thread(captureThread, std::ref(cap));
+    int snapshot_count = 0;
 
-    while (keep_running) {
+    std::cout << "Press 's' to take a snapshot. Press ESC to quit.\n";
+
+    while (running) {
         cv::Mat frame_copy;
+
         {
             std::lock_guard<std::mutex> lock(frame_mutex);
             if (shared_frame.empty()) continue;
             frame_copy = shared_frame.clone();
         }
 
+        // Show the frame
         cv::imshow("Live Feed", frame_copy);
-        char key = cv::waitKey(1);
 
-        if (key == 27) { // ESC
-            keep_running = false;
+        // Write to video file
+        writer.write(frame_copy);
+
+        // Check for key input
+        char key = (char)cv::waitKey(1);
+        if (key == 27) {  // ESC
+            running = false;
         } else if (key == 's') {
-            take_snapshot = true;
+            std::string filename = "snapshot_" + std::to_string(snapshot_count++) + ".png";
+            cv::imwrite(filename, frame_copy);
+            std::cout << "Saved snapshot: " << filename << "\n";
         }
     }
 
-    capture_thread.join();
-    writer_thread.join();
-    snapshot_thread.join();
-
+    cap_thread.join();
     cap.release();
     writer.release();
     cv::destroyAllWindows();
